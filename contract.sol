@@ -45,6 +45,7 @@ contract NFTContract is ERC1155 {
 
     Collection[] public collections;
     NFT[] public nfts;
+    Auction[] public auctions;
 
     mapping (uint => CollectionSaleData) public collectionSaleData;
     mapping (uint => NFTSaleData) public nftSaleData;
@@ -67,6 +68,10 @@ contract NFTContract is ERC1155 {
         return nfts;
     }
 
+    function getAuctions() public view returns (Auction[] memory) {
+        return auctions;
+    }
+
     function getAuction(uint collectionId) public view returns (Auction memory) {
         return collectionAuctions[collectionId];
     }
@@ -74,6 +79,10 @@ contract NFTContract is ERC1155 {
     function getSaleData(uint id) public  view returns (NFTSaleData memory) {
         return  nftSaleData[id];
     }
+
+    function getCollectionOwner(uint id) public view returns (address) {
+        return nfts[collections[id].nftIds[0]].owner;
+    } 
 
     function createCommonNft(string calldata name, string calldata pictureLink) public onlyOwner returns(uint) {
         uint nftId = nfts.length;
@@ -125,20 +134,19 @@ contract NFTContract is ERC1155 {
         require(nft.isCollectible && !collections[id].isOpen, "This collection is open");
         
         Auction storage auction = collectionAuctions[id];
-        auction.startPrice = startPrice;
-        auction.maxPrice = maxPrice;
+        auction.startPrice = startPrice*10**18;
+        auction.maxPrice = maxPrice*10**18;
         auction.isValid = true;
+
+        auctions.push(auction);
     } 
 
-    function joinAuction(uint collectionId) public payable  {
-        Collection storage collection = collections[collectionId];
-        require(collection.isOpen, "This collection is closed");
+    function joinAuction(uint collectionId) public payable {
+        // uction storage auction = collectionAuctions[collectionId];
+        require(collectionAuctions[collectionId].isValid, "This collection is not on an auction");
+        require(msg.value >= collectionAuctions[collectionId].startPrice && msg.value <= collectionAuctions[collectionId].maxPrice, "Invalid value");
 
-        Auction storage auction = collectionAuctions[collectionId];
-        require(auction.isValid, "This collection is not on an auction");
-        require(msg.value >= auction.startPrice && msg.value <= auction.maxPrice, "Invalid value");
-        
-        auction.bids.push(Bid(msg.sender, msg.value));
+        collectionAuctions[collectionId].bids.push(Bid(msg.sender, msg.value));
     }
 
     function finishAuction(uint collectionId) public {

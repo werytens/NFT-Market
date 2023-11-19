@@ -12,6 +12,7 @@ import NFTModal from "@/components/NFTModal";
 import NFT from "@/components/NFT";
 
 import SellIcon from '@mui/icons-material/Sell';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 
 type IAccountInfo = {
     address: string;
@@ -196,6 +197,65 @@ export default function Home() {
         confirm('Вы уверены?') === true ? buyNft(id, price) : null : null
     }
 
+    const getCollectionOwner = async (id: number) => {
+        const res = await contractInstanse.methods.getCollectionOwner(id).call();
+
+        return res.toLocaleLowerCase() === currentAccount?.toLocaleLowerCase();        
+    } 
+
+    const startAuction = async (id: number, startPrice: number, maxPrice: number) => {
+        await contractInstanse.methods.startAuction(id, startPrice, maxPrice).send({
+            from: currentAccount,
+            gas: String(3000000)
+        })
+    }
+
+    const joinAuction = async (id: number, value: number) => {
+        web3 ? 
+
+        await contractInstanse.methods.joinAuction(id).send({
+            from: currentAccount,
+            gas: String(3000000),
+            value: web3.utils.toWei(value, 'ether')
+        })
+
+        : null
+    }
+
+    const finishAuction = async (id: number) => {
+        await contractInstanse.methods.finishAuction(id).send({
+            from: currentAccount,
+            gas: String(3000000)
+        })
+    }
+
+    const auction = async (id: number) => {
+        const isCollectionOwn = await getCollectionOwner(id);
+
+        if (isCollectionOwn) {
+
+            if ((await getAuction(id)).startPrice) {
+                const check = confirm('Вы уверены, что хотите закончить аукцион этой коллекции?')
+                if (check) {
+                    await finishAuction(id);
+                }
+            } else {
+                const data = prompt('[startPrice] [maxPrice]');
+            
+                await startAuction(id, Number(data?.split(' ')[0]), Number(data?.split(' ')[1]))
+            }
+
+        } else {
+            const value = prompt('Amount of money');
+
+            await joinAuction(id, Number(value));
+        }
+    }
+
+
+    const getAuction = async (id: number) => {
+        return await contractInstanse.methods.getAuction(0).call()
+    }
 
     return (
         <div className="px-[200px] w-[100%] h-[100%]">
@@ -328,31 +388,39 @@ export default function Home() {
                             <div className="flex flex-col mb-10">
                                 {
                                     collections?.map((item, index) => (
-                                        <div
-                                            key={index}
-                                            className="p-3 bg-[#c9c9c9] rounded flex justify-around mb-2 cursor-pointer"
-                                            onClick={() => {
-                                                setMainModal(true);
-                                                setSelectedColleciton(item);
-                                            }}
-                                        >
-                                            <p>
-                                                ({index}) <b></b>
-                                                <span className="mr-4">
-                                                    {item.name}
-                                                </span>
-                                            </p>
-                                            <p>
-                                                Open collection: <b></b>
-                                                <span className={item.isOpen ? 'text-[green]' : 'text-[red]'} >
-                                                    {
-                                                        String(item.isOpen)
-                                                    }
-                                                </span>
-                                            </p>
-                                            <p>
-                                                Nft count: {item.nftIds.length}
-                                            </p>
+                                        <div className="flex h-[50px] w-[100%]">
+                                            <div
+                                                key={index}
+                                                className="h-[50px] p-3 bg-[#c9c9c9] rounded flex justify-around items-center mb-2 cursor-pointer w-[95%]"
+                                                onClick={() => {
+                                                    setMainModal(true);
+                                                    setSelectedColleciton(item);
+                                                }}
+                                            >
+                                                <p>
+                                                    ({index + 1}) <b></b>
+                                                    <span className="mr-4">
+                                                        {item.name}
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Open collection: <b></b>
+                                                    <span className={item.isOpen ? 'text-[green]' : 'text-[red]'} >
+                                                        {
+                                                            String(item.isOpen)
+                                                        }
+                                                    </span>
+                                                </p>
+                                                <p>
+                                                    Nft count: {item.nftIds.length}
+                                                </p>
+                                            </div>
+                                            <button 
+                                                className="p-3 bg-[#c9c9c9] rounded ml-2 w-[5%]"
+                                                onClick={() => {auction(index)}}
+                                            >
+                                                <StorefrontIcon/>
+                                            </button>
                                         </div>
                                     ))
                                 }
